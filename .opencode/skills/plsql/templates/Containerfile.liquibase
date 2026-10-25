@@ -1,0 +1,9 @@
+# Liquibase per i database di prova (SQL-007). Copiare nel progetto come db/liquibase/Containerfile.
+# Build dalla root del progetto: vedi references/tools.md della skill plsql.
+FROM docker.io/liquibase/liquibase:5.0.4
+
+# L'immagine include solo il driver H2: aggiungere quello del DBMS di destinazione
+# (postgresql | mysql | oracle-ojdbc11).
+RUN lpm add postgresql --global
+
+COPY --chown=liquibase:liquibase db/changelog /liquibase/changelog

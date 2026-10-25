@@ -1,0 +1,13 @@
+# Procedure Review Report
+- DBMS / versione / ambiente:
+- Oggetto e migration numerata:
+- Naming e format SQL-001:
+- Procedural SQL-002:
+- Error handling, transactions SQL-003:
+- Audit SQL-003A:
+- Testing, coverage SQL-005:
+- Security SQL-006:
+- Script forward/rollback SQL-007:
+- Evidenze (comandi/exit code/log):
+- Gate finale: PASS / WARNING / FAIL / NOT_VERIFIED / NOT_APPLICABLE
+- Approvazione o rischi residui:

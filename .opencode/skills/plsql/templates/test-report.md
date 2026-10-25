@@ -1,0 +1,13 @@
+# Database Integration Test Report
+- DBMS / versione / architettura / tag + digest image:
+- Podman: container test identificativo / readiness:
+- Migration applicate in ordine (ID e checksum):
+- Baseline test / fixture:
+- SQL execution: comandi, exit code e log:
+- Test e coverage: pass/fail/skip; Oracle line coverage dove misurabile:
+- Rollback: ID, script `.down.sql` o piano approvato, verifica schema/dati:
+- Reapply: esito, test ripetuti:
+- Analisi statica / security / performance pertinenti:
+- Teardown solo delle risorse effimere create:
+- Gate: PASS / WARNING / FAIL / NOT_VERIFIED / NOT_APPLICABLE
+- Evidenze mancanti e relativa approvazione:

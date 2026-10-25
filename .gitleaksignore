@@ -1,0 +1,7 @@
+# Eccezioni Gitleaks approvate (COM-009).
+#
+# COM-008 documenta il comando che genera il token SonarQube con le credenziali iniziali
+# pubbliche admin/admin di un'istanza locale ed effimera (127.0.0.1, rimossa a fine review).
+# Non è un segreto reale. Approvata da Denis Berretti il 25 ottobre 2026.
+# Il fingerprint contiene il numero di riga: va aggiornato se la riga in COM-008 si sposta.
+.opencode/skills/common/standards/COM-008-sonarqube-podman.md:curl-auth-user:39

@@ -1,0 +1,3 @@
+FROM flint:40b-a2b-qat-int4
+
+PARAMETER num_ctx 16384

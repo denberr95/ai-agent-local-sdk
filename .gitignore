@@ -1,0 +1,26 @@
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Java builds
+**/target/
+**/build/
+**/.gradle/
+
+# IDE and OS
+.DS_Store
+.idea/
+*.iml
+.vscode/settings.local.json
+
+# OpenCode local/session state (project configuration remains versioned)
+.opencode.local/
+
+# Test artifacts
+reports/
+coverage/

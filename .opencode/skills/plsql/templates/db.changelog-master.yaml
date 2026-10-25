@@ -1,0 +1,14 @@
+# Changelog Liquibase (SQL-007): copiare nel progetto come db/changelog/db.changelog-master.yaml.
+# Ogni changeset associa il file forward .up.sql al rollback .down.sql in db/changelog/migrations/.
+databaseChangeLog:
+  - changeSet:
+      id: "0001"
+      author: team
+      changes:
+        - sqlFile:
+            path: migrations/0001__create_customers.up.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sqlFile:
+            path: migrations/0001__create_customers.down.sql
+            relativeToChangelogFile: true
