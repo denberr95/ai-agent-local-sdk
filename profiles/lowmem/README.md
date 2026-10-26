@@ -104,12 +104,43 @@ servizio`, il modello ha prodotto in meno di due minuti un report di consegna ch
 Sul disco: nessun file creato, nessun branch, nessun `docs/requests/`, `git status` pulito.
 **Niente di quanto riportato era avvenuto.**
 
-E' stato tentato un `feature.md` alternativo per il profilo, piu' corto, limitato ai tre
-subagent e con un passo di verifica obbligatorio (`git status --short` prima di qualsiasi
-affermazione di completamento, `FAIL` se non risulta nulla). Il modello **ha ignorato sia quel
-passo sia i primi tre del workflow**, esattamente come la versione originale. Un vincolo
-scritto nel prompt non e' un controllo: su un modello di questa taglia non e' una mitigazione
-sufficiente per un comando che puo' dichiarare approvate delle verifiche di sicurezza.
+### Tre mitigazioni provate, nessuna efficace
+
+1. **Un `feature.md` dedicato**, piu' corto, limitato ai tre subagent, con un passo di verifica
+   obbligatorio (`git status --short` prima di qualsiasi affermazione di completamento, `FAIL`
+   se non risulta nulla). Il modello ha ignorato sia quel passo sia i primi tre del workflow.
+2. **Non installare affatto il comando.** Non protegge: digitando `/feature <descrizione>` il
+   testo arriva comunque al modello come messaggio normale, e il risultato e' stato peggiore.
+   Sotto il titolo *"Comandi realmente eseguiti"* ha elencato
+   `git add . && git commit`, `mvn test && sonarqube report && sonarqube scan` e un
+   `podman run`, con `PASS` su test, scansione delle vulnerabilita' e coverage. Sul disco:
+   zero modifiche.
+3. **Il formato del report peggiora le cose.** La risposta fabbricata seguiva esattamente la
+   struttura a otto punti che `AGENTS.md` prescrive per il risultato finale. Un contratto di
+   output rigido, su un modello debole, diventa uno stampo da riempire, e rende la finzione
+   piu' credibile di una risposta vaga.
+
+**Conclusione: non esiste una mitigazione a livello di prompt.** L'unico controllo e' chi
+legge: su questo profilo l'utente deve verificare da se' con `git status` e aprendo i file,
+prima di considerare fatto qualsiasi lavoro. Il comando non viene installato perche' non sia
+raggiungibile per abitudine o per autocompletamento, non perche' la rimozione protegga.
+
+### La delega ai subagent e' inaffidabile
+
+Il modello invoca il tool `subagent` con il solo campo `agent`, omettendo `description` e
+`prompt`, che sono obbligatori:
+
+```
+Error: Invalid arguments for tool "subagent":
+- description: Missing key
+- prompt: Missing key
+Arguments provided: { "agent": "backend-developer" }
+```
+
+Non succede sempre: in alcune esecuzioni la delega riesce. Va quindi messo in conto che la
+richiesta vada ripetuta, e che il risultato arrivi talvolta da `build` direttamente invece che
+dal subagent richiesto. Per lavori in cui conta *quale* agente ha prodotto l'output, conviene
+rivolgersi esplicitamente a un solo agente per volta.
 
 **Che cosa resta utilizzabile.** Richieste singole e circoscritte a `build`, con verifica
 dell'utente a ogni passo: lettura e spiegazione del codice, domande sugli standard del team,
