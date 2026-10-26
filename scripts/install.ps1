@@ -4,8 +4,8 @@ install.ps1 - Copia la configurazione OpenCode del team in un repository (Window
 Uso:   scripts\install.ps1 <directory-progetto> [-Force] [-Profile <nome>]
 Copia: AGENTS.md, opencode.jsonc, .opencode\agents, .opencode\commands, .opencode\skills
 
-Con -Profile <nome> legge profiles\<nome>\: AGENTS.md e opencode.jsonc vengono presi da li'
-e, se profile.conf elenca AGENTS o SKILLS, vengono installati soltanto quelli. Senza
+Con -Profile <nome> legge profiles\<nome>\: i file presenti li' sostituiscono gli omonimi del
+kit e, se profile.conf elenca AGENTS, SKILLS o COMMANDS, vengono installati solo quelli. Senza
 -Profile il comportamento e' invariato. Profili disponibili: vedi profiles\*\README.md.
 
 I file gia' presenti e diversi vengono saltati. Con -Force vengono sostituiti
@@ -45,6 +45,18 @@ function Show-Usage {
 function Stop-WithError([string]$Message) {
     [Console]::Error.WriteLine("ERRORE: $Message")
     exit 1
+}
+
+# Get-ProfileSource <percorso-relativo>
+# Restituisce il file del profilo che sostituisce quello del kit, se esiste. La corrispondenza
+# toglie il prefisso .opencode/: AGENTS.md -> <profilo>\AGENTS.md, .opencode/commands/x.md ->
+# <profilo>\commands\x.md. Stringa vuota significa "usa il file del kit".
+function Get-ProfileSource([string]$Relative) {
+    if (-not $ProfileDir) { return '' }
+    $suffix = ($Relative -replace '^\.opencode/', '') -replace '/', '\'
+    $candidate = Join-Path $ProfileDir $suffix
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    return ''
 }
 
 function Copy-KitFile([string]$Relative, [string]$SourceOverride = '') {
@@ -99,6 +111,7 @@ if ([string]::Equals($TargetPath, $KitRoot.TrimEnd('\', '/'), [System.StringComp
 $ProfileDir = ''
 $AgentsFilter = @()
 $SkillsFilter = @()
+$CommandsFilter = @()
 if ($ProfileName) {
     if ($ProfileName -match '[\\/]' -or $ProfileName.StartsWith('.')) {
         Stop-WithError ('nome di profilo non valido: {0}' -f $ProfileName)
@@ -116,6 +129,9 @@ if ($ProfileName) {
             }
             elseif ($line -match '^SKILLS="(.*)"\s*$') {
                 $SkillsFilter = @($Matches[1] -split '\s+' | Where-Object { $_ })
+            }
+            elseif ($line -match '^COMMANDS="(.*)"\s*$') {
+                $CommandsFilter = @($Matches[1] -split '\s+' | Where-Object { $_ })
             }
         }
     }
@@ -149,20 +165,12 @@ function Get-SelectedPaths([string]$Sub, [string[]]$Names, [string]$Kind) {
 }
 
 try {
-    foreach ($relative in @('AGENTS.md', 'opencode.jsonc')) {
-        $override = ''
-        if ($ProfileDir) {
-            $candidate = Join-Path $ProfileDir $relative
-            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $override = $candidate }
-        }
-        Copy-KitFile $relative $override
-    }
-    $files = @()
+    $files = @('AGENTS.md', 'opencode.jsonc')
     $files += Get-SelectedPaths 'agents' $AgentsFilter 'File'
-    $files += Get-SelectedPaths 'commands' @() 'File'
+    $files += Get-SelectedPaths 'commands' $CommandsFilter 'File'
     $files += Get-SelectedPaths 'skills' $SkillsFilter 'Directory'
     foreach ($relative in ($files | Sort-Object)) {
-        Copy-KitFile $relative
+        Copy-KitFile $relative (Get-ProfileSource $relative)
     }
 }
 catch {

@@ -22,6 +22,7 @@ scripts/install.sh ../mio-progetto --profile lowmem
 | Modello | `flint:40b-a2b-qat-int4`, circa 23 GB | `granite4:micro`, circa 2,1 GB (`ollama/Modelfile.lowmem`) |
 | Subagent installati | 9 | 3: `architect-planner`, `backend-developer`, `code-quality-reviewer` |
 | Skill installate | 4 | 1 per progetto: `springboot` **oppure** `plsql` |
+| Comandi installati | `/feature`, `/git-commit-conventional` | solo `/git-commit-conventional` |
 | `instructions` | COM-001 sempre in contesto | vuoto; COM-001 resta disponibile tramite la skill `common` |
 
 Le regole del team su quality gate, evidenze, Git, shell e contenuto del report finale **non
@@ -83,6 +84,38 @@ Stessa domanda, "quali subagent sono disponibili in questo progetto?", stesso mo
 
 Per questo `profiles/lowmem/opencode.jsonc` contiene `{ "action": "execute", "resource": "*",
 "effect": "deny" }`. Vale la pena valutare la stessa regola anche nel profilo predefinito.
+
+## Perche' `/feature` non c'e'
+
+Il profilo **non installa `/feature`** (`COMMANDS` in `profile.conf`). Non e' prudenza
+teorica: e' il risultato di due prove sullo stesso progetto, uno scheletro Spring Boot con un
+solo file sorgente.
+
+Alla richiesta `/feature aggiungi un endpoint GET /health che restituisce lo stato del
+servizio`, il modello ha prodotto in meno di due minuti un report di consegna che dichiarava:
+
+- i file creati, con un package che nel progetto non esiste (`com/example/demo/` invece di
+  `it/test/demo/`);
+- un commit eseguito tramite `/git-commit-conventional`;
+- l'esito dei test, con le durate (`42ms`, `15ms`);
+- `PASS` su tutti i quality gate, **security scan inclusa**;
+- un'approvazione, con approvatore `automated_pipeline` e data.
+
+Sul disco: nessun file creato, nessun branch, nessun `docs/requests/`, `git status` pulito.
+**Niente di quanto riportato era avvenuto.**
+
+E' stato tentato un `feature.md` alternativo per il profilo, piu' corto, limitato ai tre
+subagent e con un passo di verifica obbligatorio (`git status --short` prima di qualsiasi
+affermazione di completamento, `FAIL` se non risulta nulla). Il modello **ha ignorato sia quel
+passo sia i primi tre del workflow**, esattamente come la versione originale. Un vincolo
+scritto nel prompt non e' un controllo: su un modello di questa taglia non e' una mitigazione
+sufficiente per un comando che puo' dichiarare approvate delle verifiche di sicurezza.
+
+**Che cosa resta utilizzabile.** Richieste singole e circoscritte a `build`, con verifica
+dell'utente a ogni passo: lettura e spiegazione del codice, domande sugli standard del team,
+modifiche puntuali a un file indicato, delega esplicita a uno dei tre subagent. Con `execute`
+negato il modello legge davvero il progetto e risponde correttamente, in 13-24 secondi. Quello
+che non regge e' l'orchestrazione autonoma di piu' passi.
 
 ## Prestazioni misurate
 

@@ -4,8 +4,8 @@
 # Uso:   scripts/install.sh <directory-progetto> [--force] [--profile <nome>]
 # Copia: AGENTS.md, opencode.jsonc, .opencode/agents, .opencode/commands, .opencode/skills
 #
-# Con --profile <nome> legge profiles/<nome>/: AGENTS.md e opencode.jsonc vengono presi da li'
-# e, se profile.conf elenca AGENTS o SKILLS, vengono installati soltanto quelli. Senza
+# Con --profile <nome> legge profiles/<nome>/: i file presenti li' sostituiscono gli omonimi
+# del kit e, se profile.conf elenca AGENTS, SKILLS o COMMANDS, vengono installati solo quelli. Senza
 # --profile il comportamento e' invariato. Profili disponibili: vedi profiles/*/README.md.
 #
 # I file gia' presenti e diversi vengono saltati. Con --force vengono sostituiti
@@ -23,6 +23,7 @@ PROFILE=""
 PROFILE_DIR=""
 AGENTS_FILTER=""
 SKILLS_FILTER=""
+COMMANDS_FILTER=""
 CREATED=0
 UNCHANGED=0
 UPDATED=0
@@ -35,6 +36,18 @@ usage() {
 fail() {
     printf 'ERRORE: %s\n' "$1" >&2
     exit 1
+}
+
+# profile_source <percorso-relativo>
+# Stampa il file del profilo che sostituisce quello del kit, se esiste. La corrispondenza
+# toglie il prefisso .opencode/: AGENTS.md -> <profilo>/AGENTS.md, .opencode/commands/x.md ->
+# <profilo>/commands/x.md. Niente in uscita significa "usa il file del kit".
+profile_source() {
+    local rel="$1" candidate
+    [ -n "$PROFILE_DIR" ] || return 0
+    candidate="$PROFILE_DIR/${rel#.opencode/}"
+    [ -f "$candidate" ] && printf '%s\n' "$candidate"
+    return 0
 }
 
 # copy_file <percorso-relativo> [sorgente-alternativa]
@@ -108,6 +121,7 @@ if [ -n "$PROFILE" ]; then
         # Lettura senza eseguire il file: si accettano solo le righe NOME="valori".
         AGENTS_FILTER="$(sed -n 's/^AGENTS="\(.*\)"[[:space:]]*$/\1/p' "$PROFILE_DIR/profile.conf")"
         SKILLS_FILTER="$(sed -n 's/^SKILLS="\(.*\)"[[:space:]]*$/\1/p' "$PROFILE_DIR/profile.conf")"
+        COMMANDS_FILTER="$(sed -n 's/^COMMANDS="\(.*\)"[[:space:]]*$/\1/p' "$PROFILE_DIR/profile.conf")"
     fi
 fi
 
@@ -134,19 +148,13 @@ selected_paths() {
 }
 
 cd "$KIT_ROOT"
-for rel in AGENTS.md opencode.jsonc; do
-    if [ -n "$PROFILE_DIR" ] && [ -f "$PROFILE_DIR/$rel" ]; then
-        copy_file "$rel" "$PROFILE_DIR/$rel"
-    else
-        copy_file "$rel"
-    fi
-done
 while IFS= read -r rel; do
-    copy_file "$rel"
+    copy_file "$rel" "$(profile_source "$rel")"
 done < <(
     {
+        printf '%s\n' AGENTS.md opencode.jsonc
         selected_paths agents "$AGENTS_FILTER" file
-        find .opencode/commands -type f ! -name '.DS_Store'
+        selected_paths commands "$COMMANDS_FILTER" file
         selected_paths skills "$SKILLS_FILTER" dir
     } | LC_ALL=C sort
 )

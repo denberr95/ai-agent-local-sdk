@@ -8,7 +8,18 @@
 
 ## Orchestrazione
 
-Feature e correzioni si sviluppano con `/feature <descrizione della feature>`: il primary agent `build` coordina, non modifica direttamente il codice e segue il workflow del comando (branch, piano, tracciamento in `docs/requests/`, implementazione, test, review, correzioni, documentazione, report, commit). Coinvolge soltanto gli agenti necessari:
+Questo progetto usa il profilo `lowmem` e **non installa il comando `/feature`**: il modello di
+questo profilo non e' in grado di condurre quel workflow senza fabbricarne l'esito (vedi
+`profiles/lowmem/README.md`). Si lavora **un passo alla volta**, con richieste esplicite e
+circoscritte, e l'utente verifica ogni modifica prima di passare alla successiva. Il primary
+agent `build` coordina e non modifica direttamente il codice.
+
+Prima di dichiarare completato un intervento esegui `git status --short` e verifica
+l'esistenza e il contenuto dei file che dichiari di aver toccato. Se non risulta alcuna
+modifica, lo stato e' `FAIL`, non successo: vale la prima regola di questo documento, non
+inventare output. Non riportare mai test, scan o approvazioni che non hai eseguito.
+
+Gli agenti disponibili sono:
 
 | Agente | Ambito |
 | --- | --- |
