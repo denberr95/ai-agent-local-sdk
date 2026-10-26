@@ -1,0 +1,105 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Il modello Ollama e' configurato nel profilo personale dello sviluppatore.
+  "default_agent": "build",
+
+  // PROFILO LOWMEM: nessun file sempre in contesto. COM-001 pesa 2,2 KB su ogni turno e con
+  // una finestra piccola toglie spazio al lavoro; resta raggiungibile tramite la skill common
+  // quando serve davvero.
+  "instructions": [],
+
+  // Solo LLM locale: disattiva i modelli cloud gratuiti del provider "opencode" e i modelli Flint
+  // di base (senza num_ctx del Modelfile). Il modello del team e' ollama/team-flint:latest.
+  // Lista verificata con OpenCode 2.1.4: ricontrollare con "opencode models" a ogni aggiornamento.
+  "providers": {
+    "opencode": {
+      "models": {
+        "beam-free": { "disabled": true },
+        "big-pickle": { "disabled": true },
+        "deepseek-v4.1-flash-free": { "disabled": true },
+        "flint-40b-free": { "disabled": true },
+        "glm-5.3-flash-free": { "disabled": true },
+        "mimo-v2.6-flash-free": { "disabled": true },
+        "nemotron-3-ultra-free": { "disabled": true },
+        "nemotron-3.5-lightning-free": { "disabled": true },
+        "nemotron-3.5-super-vl-free": { "disabled": true }
+      }
+    },
+    "ollama": {
+      "models": {
+        "flint:latest": { "disabled": true },
+        "flint:40b-a2b-gguf-nvfp4": { "disabled": true },
+        "flint:40b-a2b-qat-int4": { "disabled": true }
+      }
+    }
+  },
+
+  "permissions": [
+    // In OpenCode "*" corrisponde anche a "/": "*.env" copre .env nella root e in ogni sottodirectory.
+    // Vince l'ultima regola che corrisponde: l'eccezione .env.example va dopo i deny.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "read", "resource": "*.pem", "effect": "deny" },
+    { "action": "read", "resource": "*.key", "effect": "deny" },
+    { "action": "read", "resource": "*.p12", "effect": "deny" },
+    { "action": "read", "resource": "*.pfx", "effect": "deny" },
+
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+
+    { "action": "edit", "resource": "*", "effect": "ask" },
+
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git show *", "effect": "allow" },
+    { "action": "shell", "resource": "git branch --show-current", "effect": "allow" },
+    { "action": "shell", "resource": "git branch --list *", "effect": "allow" },
+    { "action": "shell", "resource": "git push *", "effect": "deny" },
+    // Commit solo con /git-commit-conventional e approvazione dell'utente; mai amend o salto degli hook.
+    { "action": "shell", "resource": "git commit *", "effect": "ask" },
+    { "action": "shell", "resource": "git commit *--amend*", "effect": "deny" },
+    { "action": "shell", "resource": "git commit *--no-verify*", "effect": "deny" },
+    { "action": "shell", "resource": "git reset *", "effect": "deny" },
+    { "action": "shell", "resource": "git clean *", "effect": "deny" },
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf *", "effect": "deny" },
+    { "action": "shell", "resource": "podman system prune *", "effect": "deny" },
+
+    { "action": "webfetch", "resource": "*", "effect": "deny" },
+    { "action": "websearch", "resource": "*", "effect": "deny" },
+
+    // PROFILO LOWMEM: la sandbox JavaScript "execute" non e' coperta da nessuna regola del
+    // profilo predefinito, quindi risulta consentita. Un modello piccolo la usa al posto di
+    // leggere i file e produce codice con valori segnaposto, presentandoli poi come dati
+    // reali. Negarla lo costringe a leggere davvero il progetto.
+    { "action": "execute", "resource": "*", "effect": "deny" },
+
+    // Solo le skill del team: esclude quelle globali (~/.claude/skills, ~/.agents/skills) dal contesto del modello.
+    { "action": "skill", "resource": "*", "effect": "deny" },
+    // PROFILO LOWMEM: una sola skill per progetto. Per un repository PL/SQL sostituire
+    // "springboot" con "plsql" qui e in SKILLS di profiles/lowmem/profile.conf.
+    { "action": "skill", "resource": "springboot", "effect": "allow" },
+
+    // Solo il primary agent build puo' avviare i subagenti autorizzati.
+    { "action": "subagent", "resource": "*", "effect": "deny" }
+  ],
+
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        // PROFILO LOWMEM: 3 subagent invece di 9. Negarli non basta: finche' i file esistono
+        // in .opencode/agents/ i loro frontmatter restano nel prompt, quindi il profilo ne
+        // installa solo tre (AGENTS di profiles/lowmem/profile.conf).
+        { "action": "subagent", "resource": "architect-planner", "effect": "allow" },
+        { "action": "subagent", "resource": "backend-developer", "effect": "allow" },
+        { "action": "subagent", "resource": "code-quality-reviewer", "effect": "allow" }
+      ]
+    }
+  }
+}

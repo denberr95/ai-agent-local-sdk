@@ -37,7 +37,8 @@ Versioni verificate il 25 ottobre 2026 sulla workstation di riferimento: macOS 2
 | Componente | Versione richiesta | Versione verificata |
 | --- | --- | --- |
 | macOS | Apple Silicon | 26.7.1 (arm64) |
-| Windows 10/11, Linux | — | Non verificata |
+| Windows 10/11 | — | 11 26100, con il profilo `lowmem` (vedi "Note per Windows") |
+| Linux | — | Non verificata |
 | Git | 2.x | 2.54.0 |
 | Visual Studio Code | — | 1.142.0 |
 | Ollama | 0.40.8 o successiva (requisito del modello) | 0.40.10 |
@@ -71,6 +72,8 @@ Versioni verificate il 25 ottobre 2026 sulla workstation di riferimento: macOS 2
 | File | Destinazione | Scopo |
 | --- | --- | --- |
 | `ollama/Modelfile` | Ollama (`ollama create team-flint`) | Alias `team-flint`, contesto 16384 token |
+| `ollama/Modelfile.lowmem` | Ollama (`ollama create team-flint`) | Alias `team-flint` del profilo `lowmem`: modello piu' piccolo, stesso contesto |
+| `profiles/<nome>/` | Repository applicativo, tramite gli script con `--profile` | `AGENTS.md` e `opencode.jsonc` alternativi, piu' `profile.conf` con gli agenti e le skill da installare |
 | `ollama/ollama.env` | Ambiente del server Ollama, tramite `scripts/ollama-env.sh` o `.ps1` | Valori delle variabili della sezione seguente |
 | `config/opencode-user.example.jsonc` | `opencode.jsonc` nella directory `config` indicata da `opencode debug paths` | Modello predefinito `ollama/team-flint:latest`, aggiornamenti automatici disattivati |
 | `AGENTS.md`, `opencode.jsonc`, `.opencode/` | Repository applicativo, tramite gli script | Regole, permessi, agenti, comandi e skill del team; solo skill del team visibili; modelli cloud di OpenCode disattivati |
@@ -87,13 +90,37 @@ Valori in `ollama/ollama.env`, impostati da `scripts/ollama-env.sh` (macOS con `
 | `OLLAMA_FLASH_ATTENTION` | `1` | Necessario per quantizzare la cache del contesto (runner llama.cpp, modelli GGUF) |
 | `OLLAMA_KV_CACHE_TYPE` | `q8_0` | Circa metà della memoria del contesto rispetto a `f16` (runner llama.cpp; effetto sul runner MLX da verificare) |
 
+## Note per Windows
+
+Verificate su Windows 11 26100 con Ollama 0.40.11 e OpenCode 2.1.4.
+
+- **Il tag del modello predefinito non si scarica.** `flint:40b-a2b-qat-int4` e' in formato MLX
+  e `ollama pull` termina con `this model requires MLX support, but the MLX runtime is not
+  available`. Su Windows e Linux serve un tag GGUF, oppure il profilo
+  [`lowmem`](profiles/lowmem/README.md).
+- **Le variabili di `ollama/ollama.env` valgono solo dal riavvio del server.** *Quit Ollama*
+  dall'area di notifica chiude `ollama app.exe` ma lascia vivo il processo `ollama.exe`, che
+  non si termina ne' con `Stop-Process` ne' con `taskkill /F` (*Access is denied*). Per
+  verificare che il riavvio sia avvenuto: in Gestione attivita' deve sparire la voce
+  `ollama.exe`, e `ollama ps` deve riportare un `UNTIL` coerente con `OLLAMA_KEEP_ALIVE`
+  invece dei 5 minuti predefiniti.
+- **Il log del server ruota a ogni riavvio**: le righe nuove vanno in
+  `%LOCALAPPDATA%\Ollama\server.log` e le precedenti in `server-1.log`. Un `server.log` da
+  0 byte non significa che non arrivino richieste.
+- **`opencode models` puo' restare muto per minuti** senza errori a schermo: scarica il
+  catalogo da `models.dev` (circa 5,8 MB) con un timeout di 10 secondi. Su una connessione
+  lenta, o mentre un `ollama pull` e' in corso, fallisce e il log riporta
+  `Failed to fetch models.dev`.
+- **Non lanciare `ollama app.exe` da una sessione non interattiva**: parte ma non avvia il
+  server. Da script usare `ollama.exe serve`.
+
 ## Script
 
 | Script | Piattaforma | Uso |
 | --- | --- | --- |
-| `scripts/install.sh` | Linux, macOS | `scripts/install.sh <directory-progetto> [--force]` |
-| `scripts/install.ps1` | Windows | `scripts\install.ps1 <directory-progetto> [-Force]` |
+| `scripts/install.sh` | Linux, macOS | `scripts/install.sh <directory-progetto> [--force] [--profile <nome>]` |
+| `scripts/install.ps1` | Windows | `scripts\install.ps1 <directory-progetto> [-Force] [-Profile <nome>]` |
 | `scripts/ollama-env.sh` | Linux, macOS | `scripts/ollama-env.sh [--check]` |
 | `scripts/ollama-env.ps1` | Windows | `scripts\ollama-env.ps1 [-Check]` |
 
-`install` copia la configurazione del team nel repository applicativo senza sovrascrivere i file modificati, salvo `--force` (`-Force`) con backup; exit code `0` completato, `1` errore, `2` alcuni file saltati. `ollama-env` imposta le variabili del server Ollama da `ollama/ollama.env` o, con `--check` (`-Check`), le confronta senza modificarle; exit code `0` ok, `1` errore, `2` argomenti non validi, `3` valori diversi. Procedura di adozione nel [README](README.md).
+`install` copia la configurazione del team nel repository applicativo senza sovrascrivere i file modificati, salvo `--force` (`-Force`) con backup; exit code `0` completato, `1` errore, `2` alcuni file saltati. Con `--profile <nome>` (`-Profile <nome>`) installa la variante descritta in `profiles/<nome>/README.md` invece del profilo predefinito; senza l'opzione il comportamento non cambia. Profilo disponibile: [`lowmem`](profiles/lowmem/README.md), per workstation che non possono dedicare al modello circa 23 GB. `ollama-env` imposta le variabili del server Ollama da `ollama/ollama.env` o, con `--check` (`-Check`), le confronta senza modificarle; exit code `0` ok, `1` errore, `2` argomenti non validi, `3` valori diversi. Procedura di adozione nel [README](README.md).

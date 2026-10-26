@@ -15,6 +15,9 @@ Agenti, comandi, skill e standard del team per sviluppare progetti **Spring Boot
    .\scripts\install.ps1 ..\mio-progetto
    ```
 
+   Su una workstation che non puo' dedicare al modello circa 23 GB, aggiungi
+   `--profile lowmem` (`-Profile lowmem`): vedi [profiles/lowmem/README.md](profiles/lowmem/README.md).
+
 3. Dal repository applicativo avvia `opencode` e lancia `/feature <descrizione della feature>`.
 
 ## Avviare l'ambiente di sviluppo
@@ -65,6 +68,11 @@ ollama show team-flint
 ```
 
 `ollama show` deve riportare `tools` tra le *Capabilities* e `num_ctx 16384` tra i parametri.
+
+Il tag `40b-a2b-qat-int4` e' in formato MLX e si scarica **solo su Apple Silicon**: su Windows
+e Linux `ollama pull` termina con `this model requires MLX support, but the MLX runtime is not
+available`. Su quelle piattaforme usa un tag GGUF oppure il profilo
+[`lowmem`](profiles/lowmem/README.md), che porta con se' il proprio `Modelfile`.
 
 ### 4. Profilo utente OpenCode
 
@@ -118,6 +126,7 @@ opencode
 
 - `opencode models` deve mostrare soltanto `ollama/team-flint:latest`.
 - `opencode debug agents` deve mostrare `build` e i 9 subagent; alla prima esecuzione in una directory nuova può restituire `[]`: rilancialo.
+- **Il servizio di sfondo di OpenCode tiene in cache la configurazione del progetto**: dopo aver installato il kit, o dopo ogni modifica a `opencode.jsonc`, le nuove impostazioni valgono solo da quando il servizio riparte. Finché resta in esecuzione quello vecchio continuano ad applicarsi i valori precedenti, senza alcun errore a schermo. Alla prima esecuzione dopo il riavvio metti in conto qualche minuto: il servizio riscarica il catalogo dei modelli.
 - In OpenCode avvia il lavoro con `/feature <descrizione della feature>`: il primo passo chiede da quale branch partire.
 
 ## Contenuto
@@ -130,6 +139,7 @@ opencode
 | `.opencode/commands/` | Comandi `/feature` e `/git-commit-conventional` | Sì |
 | `.opencode/skills/` | Skill e standard | Sì |
 | `config/`, `ollama/` | Profilo utente OpenCode, Modelfile e variabili del server Ollama | No |
+| `profiles/` | Varianti del kit selezionabili con `--profile`; i file dentro `profiles/<nome>/` sostituiscono i rispettivi predefiniti | Solo con `--profile` |
 | `scripts/` | Installazione del kit nei progetti e variabili del server Ollama | No |
 
 ### Agenti
