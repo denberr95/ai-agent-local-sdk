@@ -173,6 +173,37 @@ modifiche puntuali a un file indicato, delega esplicita a uno dei tre subagent. 
 negato il modello legge davvero il progetto e risponde correttamente, in 13-24 secondi. Quello
 che non regge e' l'orchestrazione autonoma di piu' passi.
 
+## Scegliere il modello: `tools` non basta
+
+La capability `tools` in `ollama show` e' **necessaria ma non sufficiente**. Un modello puo'
+dichiararla e non emettere comunque chiamate valide dentro OpenCode.
+
+`qwen2.5-coder:7b` e' stato provato proprio per capire se il limite fosse la taglia: dichiara
+`tools`, non ha `thinking`, ed e' piu' grande del doppio di `granite4:micro`. **E' andato
+peggio.** In tutte e tre le prove ha stampato la chiamata come testo JSON nella risposta,
+invece di invocarla:
+
+```json
+{ "name": "subagent", "arguments": { "agent": "architect-planner", "description": "..." } }
+```
+
+Gli argomenti erano completi e pertinenti, quindi lo schema lo conosce; semplicemente non e'
+arrivato al runtime come tool call. Risultato: nessuna risposta utile neanche alla domanda piu'
+semplice, quella a cui `granite4:micro` risponde correttamente in meno di 20 secondi.
+
+| | `granite4:micro` (3,4B) | `qwen2.5-coder:7b` |
+| --- | --- | --- |
+| Residenti | 3,2 GB a `num_ctx` 16384 | 5,2 GB a `num_ctx` 8192 |
+| CPU/GPU | 29%/71% | 56%/44% |
+| Velocita' | 31,1 token/s | 11,9 token/s |
+| Chiamate ai tool | invocate | stampate come testo |
+| Domanda circoscritta | corretta | fallita |
+
+**Il fattore limitante non e' il numero di parametri, e' la fedelta' del tool calling.** Per
+questo il profilo indica `granite4:micro`, che nasce per l'uso agentico, e non un modello piu'
+grande. Prima di sostituirlo, verificare sul campo che le chiamate vengano davvero invocate:
+nell'output di `opencode run` devono comparire righe di tool eseguiti, non blocchi JSON.
+
 ## Prestazioni misurate
 
 Windows 11, Core Ultra 7 165H, 32 GB in **single channel**, RTX 500 Ada 4 GB, Ollama 0.40.11,
