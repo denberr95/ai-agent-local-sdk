@@ -29,6 +29,31 @@ Le regole del team su quality gate, evidenze, Git, shell e contenuto del report 
 cambiano**: `profiles/lowmem/AGENTS.md` differisce dal file predefinito solo nella tabella
 degli agenti e nell'elenco delle skill, allineati a quelli realmente installati.
 
+## Adattarlo a un progetto PL/SQL
+
+Il profilo e' tarato su Java e Spring Boot. Per un repository PL/SQL vanno scambiati **sia la
+skill sia il developer**, perche' `backend-developer` e' l'agente Java: in `profile.conf`
+
+```
+AGENTS="architect-planner database-developer code-quality-reviewer"
+SKILLS="plsql"
+```
+
+in `opencode.jsonc` del profilo, la riga della skill e quella del subagent
+
+```jsonc
+{ "action": "skill", "resource": "plsql", "effect": "allow" },
+...
+{ "action": "subagent", "resource": "database-developer", "effect": "allow" },
+```
+
+e in `AGENTS.md` del profilo la riga corrispondente della tabella degli agenti. I tre file
+vanno tenuti allineati: se `opencode.jsonc` consente un subagent che `profile.conf` non
+installa, il modello prova a delegare a un agente inesistente.
+
+Verificato: con questi valori l'installazione produce 24 file, la sola skill `plsql` e permessi
+coerenti con cio' che e' stato installato.
+
 ## Perche' serve
 
 Due vincoli distinti, entrambi verificati.

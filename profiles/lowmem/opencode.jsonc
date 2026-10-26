@@ -80,8 +80,9 @@
 
     // Solo le skill del team: esclude quelle globali (~/.claude/skills, ~/.agents/skills) dal contesto del modello.
     { "action": "skill", "resource": "*", "effect": "deny" },
-    // PROFILO LOWMEM: una sola skill per progetto. Per un repository PL/SQL sostituire
-    // "springboot" con "plsql" qui e in SKILLS di profiles/lowmem/profile.conf.
+    // PROFILO LOWMEM: una sola skill per progetto. Per un repository PL/SQL vedi la ricetta
+    // completa in profiles/lowmem/README.md: non basta cambiare la skill, va scambiato anche
+    // il developer (backend-developer -> database-developer) in tre punti.
     { "action": "skill", "resource": "springboot", "effect": "allow" },
 
     // Solo il primary agent build puo' avviare i subagenti autorizzati.
