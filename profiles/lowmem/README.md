@@ -144,11 +144,43 @@ Sul disco: nessun file creato, nessun branch, nessun `docs/requests/`, `git stat
    struttura a otto punti che `AGENTS.md` prescrive per il risultato finale. Un contratto di
    output rigido, su un modello debole, diventa uno stampo da riempire, e rende la finzione
    piu' credibile di una risposta vaga.
-
 **Conclusione: non esiste una mitigazione a livello di prompt.** L'unico controllo e' chi
 legge: su questo profilo l'utente deve verificare da se' con `git status` e aprendo i file,
 prima di considerare fatto qualsiasi lavoro. Il comando non viene installato perche' non sia
 raggiungibile per abitudine o per autocompletamento, non perche' la rimozione protegga.
+
+### Perche' questo profilo toglie `edit: deny` all'agente primario
+
+Nel kit l'agente `build` ha `{ "action": "edit", "resource": "*", "effect": "deny" }`: deve
+pianificare e far scrivere ai subagent. **Su un modello piccolo quella regola fa danno**, perche'
+un tool negato non viene proprio offerto al modello, che allora ripiega sul piu' vicino.
+
+Stessa richiesta minima, `Crea il file saluto.txt con dentro la sola parola CIAO`:
+
+| configurazione | che cosa fa il modello | file sul disco |
+|---|---|---|
+| nessun kit, permessi di default | `Write saluto.txt` | **sì**, contenuto giusto |
+| kit, `edit: deny` sull'agente | `✗ Read saluto.txt failed` (2 prove su 2) | no |
+| kit, regola tolta (eredita `ask`) | `permission requested: edit (saluto.txt)` poi `Write` | sì, previa approvazione |
+
+Con `deny` il modello prova a **leggere** il file che dovrebbe creare. Tolta la regola sceglie
+`Write` al primo colpo e il permesso viene chiesto all'utente, che e' il comportamento voluto.
+In `opencode run` non interattivo la richiesta viene rifiutata da sola
+(`This non-interactive run cannot ask the user for permission`): per gli script serve un `allow`
+esplicito, nella TUI basta approvare.
+
+**Il confine vero non e' la taglia del modello, e' la forma degli argomenti.** Sui tool a un solo
+campo (`Write`, `Read`, `Glob`) il modello e' preciso. Su quelli con argomenti annidati sbaglia in
+modo sistematico: `subagent` invocato col solo `agent` (vedi sotto), e `question` con le opzioni
+compilate ma **senza il testo della domanda**:
+
+```
+Error: Invalid arguments for tool "question":
+- questions[0].question: Missing key
+```
+
+Per questo il profilo resta utilizzabile sui compiti concreti e circoscritti, e non sui flussi
+che richiedono delega.
 
 ### La delega ai subagent e' inaffidabile
 
