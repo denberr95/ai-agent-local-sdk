@@ -92,7 +92,12 @@
   "agents": {
     "build": {
       "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
+        // PROFILO LOWMEM: nel kit l'agente primario ha "edit" negato, perche' deve pianificare e
+        // delegare la scrittura a un subagent. Qui la regola e' TOLTA, cosi' "edit" eredita l'"ask"
+        // generale. Misurato: con "edit" negato il modello non ha affatto lo strumento di scrittura
+        // e ripiega sul piu' vicino, cioe' "Read" del file che dovrebbe creare
+        // ("Read saluto.txt failed - File not found"), due volte su due. Tolta la regola sceglie
+        // "Write" al primo colpo e il permesso viene chiesto all'utente, come deve.
         { "action": "subagent", "resource": "*", "effect": "deny" },
         // PROFILO LOWMEM: 3 subagent invece di 9. Negarli non basta: finche' i file esistono
         // in .opencode/agents/ i loro frontmatter restano nel prompt, quindi il profilo ne
