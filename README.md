@@ -15,6 +15,9 @@ Agenti, comandi, skill e standard del team per sviluppare progetti **Spring Boot
    .\scripts\install.ps1 ..\mio-progetto
    ```
 
+   Su una workstation che non puo' dedicare al modello circa 23 GB, aggiungi
+   `--profile lowmem` (`-Profile lowmem`): vedi [profiles/lowmem/README.md](profiles/lowmem/README.md).
+
 3. Dal repository applicativo avvia `opencode` e lancia `/feature <descrizione della feature>`.
 
 ## Avviare l'ambiente di sviluppo
@@ -66,6 +69,11 @@ ollama show team-flint
 
 `ollama show` deve riportare `tools` tra le *Capabilities* e `num_ctx 16384` tra i parametri.
 
+Il tag `40b-a2b-qat-int4` e' in formato MLX e si scarica **solo su Apple Silicon**: su Windows
+e Linux `ollama pull` termina con `this model requires MLX support, but the MLX runtime is not
+available`. Su quelle piattaforme usa un tag GGUF oppure il profilo
+[`lowmem`](profiles/lowmem/README.md), che porta con se' il proprio `Modelfile`.
+
 ### 4. Profilo utente OpenCode
 
 Copia `config/opencode-user.example.jsonc` come `opencode.jsonc` nella directory indicata dalla riga `config` di `opencode debug paths`. Su macOS e Linux:
@@ -116,8 +124,21 @@ opencode debug agents
 opencode
 ```
 
-- `opencode models` deve mostrare soltanto `ollama/team-flint:latest`.
+- `opencode models` deve mostrare soltanto `ollama/team-flint:latest`. **Alla prima esecuzione può
+  restare muto per minuti**: scarica il catalogo di `models.dev` (5,95 MB) con un timeout fisso di
+  10 s, quindi su una linea lenta o dietro proxy aziendale è un testa-o-croce. Una volta riuscito
+  resta in cache su disco (SQLite, `kv` -> `models-dev:catalog`) e le esecuzioni dopo sono rapide.
+  Il provider `ollama` **non** sta in quel catalogo: OpenCode lo rileva interrogando Ollama in locale.
 - `opencode debug agents` deve mostrare `build` e i 9 subagent; alla prima esecuzione in una directory nuova può restituire `[]`: rilancialo.
+- **Il servizio di sfondo di OpenCode tiene in cache la configurazione del progetto**: dopo aver installato il kit, o dopo ogni modifica a `opencode.jsonc`, le nuove impostazioni valgono solo da quando il servizio riparte. Finché resta in esecuzione quello vecchio continuano ad applicarsi i valori precedenti, **senza alcun errore a schermo**.
+  Per una singola esecuzione lo si aggira senza riavviare nulla:
+
+  ```bash
+  opencode run --standalone --model ollama/team-flint:latest 'la tua richiesta'
+  ```
+
+  `--standalone` usa un server privato che rilegge la configurazione a ogni avvio, e `--model` evita
+  di dipendere dal rilevamento del provider. Utile soprattutto per provare una modifica ai permessi.
 - In OpenCode avvia il lavoro con `/feature <descrizione della feature>`: il primo passo chiede da quale branch partire.
 
 ## Contenuto
@@ -130,6 +151,7 @@ opencode
 | `.opencode/commands/` | Comandi `/feature` e `/git-commit-conventional` | Sì |
 | `.opencode/skills/` | Skill e standard | Sì |
 | `config/`, `ollama/` | Profilo utente OpenCode, Modelfile e variabili del server Ollama | No |
+| `profiles/` | Varianti del kit selezionabili con `--profile`; i file dentro `profiles/<nome>/` sostituiscono i rispettivi predefiniti | Solo con `--profile` |
 | `scripts/` | Installazione del kit nei progetti e variabili del server Ollama | No |
 
 ### Agenti

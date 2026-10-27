@@ -69,6 +69,13 @@
     { "action": "shell", "resource": "rm -rf *", "effect": "deny" },
     { "action": "shell", "resource": "podman system prune *", "effect": "deny" },
 
+    // La sandbox JavaScript "execute" e' una seconda via d'esecuzione, separata da "shell": senza
+    // una regola propria resta consentita per omissione, perche' in OpenCode cio' che nessuna regola
+    // nomina e' permesso. Nessun agente o standard del kit la richiede, e un modello piccolo la
+    // preferisce alla lettura dei file, riportando come dati reali i segnaposto del codice che ha
+    // appena scritto. Negarla non toglie nulla e chiude l'ultimo tool non governato.
+    { "action": "execute", "resource": "*", "effect": "deny" },
+
     { "action": "webfetch", "resource": "*", "effect": "deny" },
     { "action": "websearch", "resource": "*", "effect": "deny" },
 

@@ -1,0 +1,16 @@
+# Modello del profilo "lowmem" (profiles/lowmem/README.md).
+#
+# Il modello del team, flint 40B, occupa circa 23 GB: su una workstation che deve tenere
+# aperti anche browser, posta e strumenti di collaborazione non c'e' memoria sufficiente.
+# Inoltre il tag "40b-a2b-qat-int4" e' in formato MLX e su Windows e Linux "ollama pull"
+# termina con: "this model requires MLX support, but the MLX runtime is not available".
+#
+# granite4:micro ha "tools" fra le Capabilities e NON ha "thinking": e' il requisito
+# decisivo, perche' un modello con il ragionamento attivo consuma centinaia di token per
+# turno e sotto il prompt di sistema del kit non converge.
+#
+# Misurato su Windows 11, Core Ultra 7 165H, 32 GB, RTX 500 Ada 4 GB, con
+# OLLAMA_KV_CACHE_TYPE=q8_0: 3,2 GB residenti, 29%/71% CPU/GPU, circa 31 token/s.
+FROM granite4:micro
+
+PARAMETER num_ctx 16384

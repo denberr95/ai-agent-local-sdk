@@ -1,8 +1,12 @@
 <#
 install.ps1 - Copia la configurazione OpenCode del team in un repository (Windows).
 
-Uso:   scripts\install.ps1 <directory-progetto> [-Force]
+Uso:   scripts\install.ps1 <directory-progetto> [-Force] [-Profile <nome>]
 Copia: AGENTS.md, opencode.jsonc, .opencode\agents, .opencode\commands, .opencode\skills
+
+Con -Profile <nome> legge profiles\<nome>\: i file presenti li' sostituiscono gli omonimi del
+kit e, se profile.conf elenca AGENTS, SKILLS o COMMANDS, vengono installati solo quelli. Senza
+-Profile il comportamento e' invariato. Profili disponibili: vedi profiles\*\README.md.
 
 I file gia' presenti e diversi vengono saltati. Con -Force vengono sostituiti
 dopo averne salvato una copia <file>.bak-<timestamp>. Nessun file viene cancellato.
@@ -15,20 +19,27 @@ param(
     [Parameter(Position = 0)]
     [string]$Target = '',
     [switch]$Force,
+    # $Profile e' una variabile automatica di PowerShell (percorso del profilo utente):
+    # il parametro si chiama ProfileName e l'alias tiene -Profile sulla riga di comando.
+    [Alias('Profile')]
+    [string]$ProfileName = '',
     [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$KitRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).ProviderPath
+# Resolve-Path non normalizza '..' sui percorsi UNC (\\wsl.localhost\...): senza GetFullPath
+# $KitRoot resta '...\scripts\..' e il Substring piu' avanti taglia 11 caratteri di troppo
+# da ogni percorso relativo, cioe' esattamente '\.opencode\'.
+$KitRoot = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).ProviderPath)
 $script:Created = 0
 $script:Unchanged = 0
 $script:Updated = 0
 $script:Skipped = 0
 
 function Show-Usage {
-    return 'Uso: scripts\install.ps1 <directory-progetto> [-Force]'
+    return 'Uso: scripts\install.ps1 <directory-progetto> [-Force] [-Profile <nome>]'
 }
 
 function Stop-WithError([string]$Message) {
@@ -36,9 +47,21 @@ function Stop-WithError([string]$Message) {
     exit 1
 }
 
-function Copy-KitFile([string]$Relative) {
+# Get-ProfileSource <percorso-relativo>
+# Restituisce il file del profilo che sostituisce quello del kit, se esiste. La corrispondenza
+# toglie il prefisso .opencode/: AGENTS.md -> <profilo>\AGENTS.md, .opencode/commands/x.md ->
+# <profilo>\commands\x.md. Stringa vuota significa "usa il file del kit".
+function Get-ProfileSource([string]$Relative) {
+    if (-not $ProfileDir) { return '' }
+    $suffix = ($Relative -replace '^\.opencode/', '') -replace '/', '\'
+    $candidate = Join-Path $ProfileDir $suffix
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    return ''
+}
+
+function Copy-KitFile([string]$Relative, [string]$SourceOverride = '') {
     $native = $Relative -replace '/', '\'
-    $src = Join-Path $KitRoot $native
+    $src = if ($SourceOverride) { $SourceOverride } else { Join-Path $KitRoot $native }
     $dest = Join-Path $TargetPath $native
 
     if (-not (Test-Path -LiteralPath $dest)) {
@@ -85,30 +108,77 @@ if ([string]::Equals($TargetPath, $KitRoot.TrimEnd('\', '/'), [System.StringComp
     Stop-WithError 'la destinazione coincide con il repository del kit'
 }
 
+$ProfileDir = ''
+$AgentsFilter = @()
+$SkillsFilter = @()
+$CommandsFilter = @()
+if ($ProfileName) {
+    if ($ProfileName -match '[\\/]' -or $ProfileName.StartsWith('.')) {
+        Stop-WithError ('nome di profilo non valido: {0}' -f $ProfileName)
+    }
+    $ProfileDir = Join-Path (Join-Path $KitRoot 'profiles') $ProfileName
+    if (-not (Test-Path -LiteralPath $ProfileDir -PathType Container)) {
+        Stop-WithError ('profilo non trovato: profiles\{0}' -f $ProfileName)
+    }
+    $conf = Join-Path $ProfileDir 'profile.conf'
+    if (Test-Path -LiteralPath $conf -PathType Leaf) {
+        # Lettura senza eseguire il file: si accettano solo le righe NOME="valori".
+        foreach ($line in Get-Content -LiteralPath $conf) {
+            if ($line -match '^AGENTS="(.*)"\s*$') {
+                $AgentsFilter = @($Matches[1] -split '\s+' | Where-Object { $_ })
+            }
+            elseif ($line -match '^SKILLS="(.*)"\s*$') {
+                $SkillsFilter = @($Matches[1] -split '\s+' | Where-Object { $_ })
+            }
+            elseif ($line -match '^COMMANDS="(.*)"\s*$') {
+                $CommandsFilter = @($Matches[1] -split '\s+' | Where-Object { $_ })
+            }
+        }
+    }
+}
+
 $Stamp = Get-Date -Format 'yyyyMMddHHmmss'
 $Version = (Get-Content -LiteralPath (Join-Path $KitRoot 'VERSION') -TotalCount 1).Trim()
 
-$files = @('AGENTS.md', 'opencode.jsonc')
-foreach ($dir in @('.opencode\agents', '.opencode\commands', '.opencode\skills')) {
-    $found = Get-ChildItem -LiteralPath (Join-Path $KitRoot $dir) -Recurse -Force -File |
-        Where-Object { $_.Name -ne '.DS_Store' } |
-        ForEach-Object { $_.FullName.Substring($KitRoot.Length).TrimStart('\', '/') -replace '\\', '/' } |
-        Sort-Object
-    if ($found) {
-        $files += $found
+# Get-SelectedPaths <sottodirectory-di-.opencode> <nomi> <File|Directory>
+# Senza nomi restituisce tutti i file della sottodirectory, come il profilo predefinito.
+function Get-SelectedPaths([string]$Sub, [string[]]$Names, [string]$Kind) {
+    $base = Join-Path $KitRoot (Join-Path '.opencode' $Sub)
+    $roots = @()
+    if (-not $Names -or $Names.Count -eq 0) {
+        $roots = @($base)
+    }
+    else {
+        foreach ($name in $Names) {
+            $candidate = if ($Kind -eq 'File') { Join-Path $base ($name + '.md') } else { Join-Path $base $name }
+            if (-not (Test-Path -LiteralPath $candidate)) {
+                Stop-WithError ('non presente nel kit: .opencode\{0}\{1}' -f $Sub, (Split-Path -Leaf $candidate))
+            }
+            $roots += $candidate
+        }
+    }
+    foreach ($root in $roots) {
+        Get-ChildItem -LiteralPath $root -Recurse -Force -File |
+            Where-Object { $_.Name -ne '.DS_Store' } |
+            ForEach-Object { $_.FullName.Substring($KitRoot.Length).TrimStart('\', '/') -replace '\\', '/' }
     }
 }
 
 try {
-    foreach ($relative in $files) {
-        Copy-KitFile $relative
+    $files = @('AGENTS.md', 'opencode.jsonc')
+    $files += Get-SelectedPaths 'agents' $AgentsFilter 'File'
+    $files += Get-SelectedPaths 'commands' $CommandsFilter 'File'
+    $files += Get-SelectedPaths 'skills' $SkillsFilter 'Directory'
+    foreach ($relative in ($files | Sort-Object)) {
+        Copy-KitFile $relative (Get-ProfileSource $relative)
     }
 }
 catch {
     Stop-WithError $_.Exception.Message
 }
 
-[Console]::Out.WriteLine(('Kit {0} in {1}: creati={2} invariati={3} aggiornati={4} saltati={5}' -f $Version, $TargetPath, $script:Created, $script:Unchanged, $script:Updated, $script:Skipped))
+$profileNote = if ($ProfileName) { ' (profilo {0})' -f $ProfileName } else { '' }
+[Console]::Out.WriteLine(('Kit {0}{1} in {2}: creati={3} invariati={4} aggiornati={5} saltati={6}' -f $Version, $profileNote, $TargetPath, $script:Created, $script:Unchanged, $script:Updated, $script:Skipped))
 
 if ($script:Skipped -gt 0) {
     [Console]::Out.WriteLine('File saltati: uniscili a mano oppure rilancia con -Force.')
